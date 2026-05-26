@@ -1,0 +1,84 @@
+<div class="layout">
+
+  <!-- Sidebar -->
+  <aside class="sidebar">
+    <div class="brand">
+      <div class="brand-icon">HR</div>
+      <span class="brand-name">HR Portal</span>
+    </div>
+    <nav>
+      <a class="nav-item" routerLink="/"><i class="pi pi-users"></i> Employees</a>
+      <a class="nav-item active" routerLink="/stats"><i class="pi pi-chart-bar"></i> Analytics</a>
+      <a class="nav-item" routerLink="/pension"><i class="pi pi-shield"></i> Pension</a>
+    </nav>
+    <div class="sidebar-footer">
+      <span class="manager-tag">Manager View</span>
+    </div>
+  </aside>
+
+  <main class="main">
+
+    <header class="page-header">
+      <div>
+        <h1>Analytics</h1>
+        <p class="subtitle">
+          {{ totalEmployees() }} employees &mdash; {{ totalPayroll() | currency:'USD':'symbol':'1.0-0' }} total payroll
+        </p>
+      </div>
+    </header>
+
+    @if (errorMessage()) {
+      <div class="error-banner"><i class="pi pi-exclamation-triangle"></i> {{ errorMessage() }}</div>
+    }
+
+    <!-- Summary cards -->
+    @if (!loading()) {
+      <div class="summary-grid">
+        @for (s of stats(); track s.department; let i = $index) {
+          <p-card styleClass="dept-summary-card">
+            <div class="dept-summary-inner">
+              <div class="dept-dot" [style.background]="deptColor(i)"></div>
+              <div class="dept-summary-info">
+                <div class="dept-name">{{ s.department }}</div>
+                <div class="dept-meta">{{ s.headcount }} people &bull; avg {{ s.avgSalary | currency:'USD':'symbol':'1.0-0' }}</div>
+              </div>
+            </div>
+          </p-card>
+        }
+      </div>
+    } @else {
+      <div class="summary-grid">
+        @for (n of [1,2,3]; track n) {
+          <p-skeleton height="64px" borderRadius="12px" />
+        }
+      </div>
+    }
+
+    <!-- Charts row 1 -->
+    <div class="charts-row">
+      <p-card header="Headcount by Department" styleClass="chart-card">
+        @if (loading()) { <p-skeleton height="260px" /> }
+        @else { <p-chart type="bar" [data]="headcountChartData()" [options]="barOptions" height="260px" /> }
+      </p-card>
+
+      <p-card header="Headcount Distribution" styleClass="chart-card">
+        @if (loading()) { <p-skeleton height="260px" /> }
+        @else { <p-chart type="doughnut" [data]="pieChartData()" [options]="pieOptions" height="260px" /> }
+      </p-card>
+    </div>
+
+    <!-- Charts row 2 -->
+    <div class="charts-row">
+      <p-card header="Total Payroll by Department" styleClass="chart-card">
+        @if (loading()) { <p-skeleton height="260px" /> }
+        @else { <p-chart type="bar" [data]="payrollChartData()" [options]="barOptions" height="260px" /> }
+      </p-card>
+
+      <p-card header="Salary Range by Department (Min / Avg / Max)" styleClass="chart-card">
+        @if (loading()) { <p-skeleton height="260px" /> }
+        @else { <p-chart type="bar" [data]="avgSalaryChartData()" [options]="stackedBarOptions" height="260px" /> }
+      </p-card>
+    </div>
+
+  </main>
+</div>

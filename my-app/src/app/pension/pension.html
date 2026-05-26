@@ -1,0 +1,346 @@
+<p-toast />
+
+<!-- ══════════════════════════════════════════════
+     MANAGER VIEW
+══════════════════════════════════════════════ -->
+@if (viewMode() === 'manager') {
+
+<div class="layout">
+
+  <!-- Sidebar -->
+  <aside class="sidebar">
+    <div class="brand">
+      <div class="brand-icon">HR</div>
+      <span class="brand-name">HR Portal</span>
+    </div>
+    <nav>
+      <a class="nav-item" routerLink="/"><i class="pi pi-users"></i> Employees</a>
+      <a class="nav-item" routerLink="/stats"><i class="pi pi-chart-bar"></i> Analytics</a>
+      <a class="nav-item active" routerLink="/pension"><i class="pi pi-shield"></i> Pension</a>
+    </nav>
+    <div class="sidebar-footer">
+      <span class="manager-tag">Manager View</span>
+    </div>
+  </aside>
+
+  <main class="main">
+
+    <!-- Page header -->
+    <header class="page-header">
+      <div>
+        <h1>Pension Management</h1>
+        <p class="subtitle">{{ totalRetirees() }} retired teachers &mdash; {{ activeCount() }} active pensioners</p>
+      </div>
+      <div class="header-actions">
+        <p-button label="Teacher Portal" icon="pi pi-sign-in" severity="secondary" [outlined]="true" (onClick)="switchToPortal()" />
+        <p-button label="Apply COLA" icon="pi pi-percentage" severity="success" [outlined]="true" (onClick)="openColaModal()" />
+      </div>
+    </header>
+
+    <!-- Stat cards -->
+    <div class="stats-grid">
+      <p-card styleClass="stat-card">
+        <div class="stat-inner">
+          <div class="stat-icon blue"><i class="pi pi-users"></i></div>
+          <div>
+            <div class="stat-label">Total Retirees</div>
+            <div class="stat-value">{{ totalRetirees() }}</div>
+          </div>
+        </div>
+      </p-card>
+      <p-card styleClass="stat-card">
+        <div class="stat-inner">
+          <div class="stat-icon green"><i class="pi pi-dollar"></i></div>
+          <div>
+            <div class="stat-label">Monthly Payout</div>
+            <div class="stat-value">{{ totalPayout() | currency:'USD':'symbol':'1.0-0' }}</div>
+          </div>
+        </div>
+      </p-card>
+      <p-card styleClass="stat-card">
+        <div class="stat-inner">
+          <div class="stat-icon purple"><i class="pi pi-check-circle"></i></div>
+          <div>
+            <div class="stat-label">Active Pensioners</div>
+            <div class="stat-value">{{ activeCount() }}</div>
+          </div>
+        </div>
+      </p-card>
+      <p-card styleClass="stat-card">
+        <div class="stat-inner">
+          <div class="stat-icon orange"><i class="pi pi-chart-line"></i></div>
+          <div>
+            <div class="stat-label">Avg. Monthly Pension</div>
+            <div class="stat-value">{{ avgPension() | currency:'USD':'symbol':'1.0-0' }}</div>
+          </div>
+        </div>
+      </p-card>
+    </div>
+
+    <!-- Filters + Table -->
+    <p-card>
+      <div class="toolbar">
+        <p-iconfield>
+          <p-inputicon styleClass="pi pi-search" />
+          <input pInputText placeholder="Search by name or ID..." [value]="searchTerm()" (input)="searchTerm.set($any($event.target).value)" />
+        </p-iconfield>
+        <p-select [options]="statusOptions" [(ngModel)]="statusFilter" optionLabel="label" optionValue="value"
+          placeholder="All Statuses" [showClear]="true" appendTo="body" />
+      </div>
+
+      <p-table
+        [value]="filteredTeachers()"
+        [sortField]="'lastName'"
+        [sortOrder]="1"
+        [paginator]="true"
+        [rows]="10"
+        [rowsPerPageOptions]="[5, 10, 25]"
+        [showCurrentPageReport]="true"
+        currentPageReportTemplate="Showing {first} to {last} of {totalRecords} retirees"
+        styleClass="p-datatable-striped p-datatable-sm"
+        [tableStyle]="{ 'min-width': '60rem' }">
+
+        <ng-template pTemplate="header">
+          <tr>
+            <th pSortableColumn="lastName">Name <p-sortIcon field="lastName" /></th>
+            <th>Teacher ID</th>
+            <th pSortableColumn="subject">Subject <p-sortIcon field="subject" /></th>
+            <th pSortableColumn="yearsOfService">Years <p-sortIcon field="yearsOfService" /></th>
+            <th pSortableColumn="retirementDate">Retired <p-sortIcon field="retirementDate" /></th>
+            <th pSortableColumn="monthlyPension">Monthly Pension <p-sortIcon field="monthlyPension" /></th>
+            <th>Status</th>
+          </tr>
+        </ng-template>
+
+        <ng-template pTemplate="body" let-t>
+          <tr>
+            <td>
+              <div class="teacher-cell">
+                <div class="avatar">{{ t.firstName[0] }}{{ t.lastName[0] }}</div>
+                <div>
+                  <div class="teacher-name">{{ t.firstName }} {{ t.lastName }}</div>
+                  <div class="teacher-sub">{{ t.yearsOfService }} yrs of service</div>
+                </div>
+              </div>
+            </td>
+            <td class="muted teacher-id">{{ t.teacherId }}</td>
+            <td>
+              <p-tag [value]="t.subject" [severity]="subjectSeverity(t.subject)" />
+            </td>
+            <td class="muted">{{ t.yearsOfService }}</td>
+            <td class="muted">{{ t.retirementDate | date:'MMM d, y' }}</td>
+            <td>
+              <div class="pension-cell">
+                <span class="pension-amount">{{ t.monthlyPension | currency:'USD':'symbol':'1.0-0' }}/mo</span>
+                <div class="pension-bar-track">
+                  <div class="pension-bar-fill" [style.width.%]="pensionBarPct(t.monthlyPension)"></div>
+                </div>
+              </div>
+            </td>
+            <td>
+              <p-select
+                [options]="rowStatusOptions"
+                [ngModel]="t.status"
+                (ngModelChange)="changeStatus(t, $event)"
+                optionLabel="label"
+                optionValue="value"
+                appendTo="body"
+                [style]="{ width: '130px' }" />
+            </td>
+          </tr>
+        </ng-template>
+
+        <ng-template pTemplate="emptymessage">
+          <tr>
+            <td colspan="7" class="empty-row">No retirees match your search.</td>
+          </tr>
+        </ng-template>
+
+      </p-table>
+    </p-card>
+
+  </main>
+</div>
+
+<!-- Apply COLA Dialog -->
+<p-dialog header="Apply Cost of Living Adjustment" [(visible)]="showColaModal" [modal]="true" [style]="{ width: '440px' }" [draggable]="false">
+  <p class="dialog-hint">Increase monthly pension for all <strong>active</strong> pensioners by a percentage.</p>
+  <div class="form-group">
+    <label>COLA %</label>
+    <input pInputText [(ngModel)]="colaPercent" type="number" min="0.1" max="20" step="0.1" style="width: 100%" />
+  </div>
+  <div class="dialog-footer">
+    <p-button [label]="'Apply ' + colaPercent() + '% COLA'" icon="pi pi-percentage" severity="success" (onClick)="submitCola()" />
+  </div>
+</p-dialog>
+
+} <!-- end manager view -->
+
+
+<!-- ══════════════════════════════════════════════
+     TEACHER LOGIN VIEW
+══════════════════════════════════════════════ -->
+@if (viewMode() === 'login') {
+
+<div class="portal-page">
+  <div class="login-card">
+    <div class="login-logo">
+      <div class="login-logo-icon"><i class="pi pi-shield"></i></div>
+      <div class="login-logo-text">
+        <span class="login-brand">HR Portal</span>
+        <span class="login-sub">Teacher Pension Self-Service</span>
+      </div>
+    </div>
+
+    <p-divider />
+
+    <h2 class="login-heading">Sign In</h2>
+    <p class="login-hint">Enter your Teacher ID to view your pension details.</p>
+
+    <div class="form-group">
+      <label>Teacher ID</label>
+      <input
+        pInputText
+        [value]="portalTeacherId()"
+        (input)="portalTeacherId.set($any($event.target).value)"
+        placeholder="e.g. TCH-001"
+        style="width: 100%; text-transform: uppercase;"
+        (keyup.enter)="portalLogin()" />
+    </div>
+
+    @if (loginError()) {
+      <div class="login-error"><i class="pi pi-exclamation-circle"></i> {{ loginError() }}</div>
+    }
+
+    <div style="margin-top: 0.5rem;">
+      <p-button label="Sign In" icon="pi pi-sign-in" [fluid]="true" (onClick)="portalLogin()" />
+    </div>
+
+    <button class="back-link" (click)="viewMode.set('manager')">
+      <i class="pi pi-arrow-left"></i> Back to Manager View
+    </button>
+  </div>
+</div>
+
+} <!-- end login view -->
+
+
+<!-- ══════════════════════════════════════════════
+     TEACHER PORTAL DASHBOARD VIEW
+══════════════════════════════════════════════ -->
+@if (viewMode() === 'portal' && portalTeacher(); as t) {
+
+<div class="portal-page portal-dash-bg">
+
+  <!-- Top bar -->
+  <header class="portal-topbar">
+    <div class="portal-topbar-brand">
+      <div class="brand-icon">HR</div>
+      <span class="brand-name">Teacher Pension Portal</span>
+    </div>
+    <div class="portal-topbar-right">
+      <div class="portal-user-pill">
+        <div class="portal-avatar">{{ t.firstName[0] }}{{ t.lastName[0] }}</div>
+        <span>{{ t.firstName }} {{ t.lastName }}</span>
+      </div>
+      <p-button label="Sign Out" icon="pi pi-sign-out" severity="secondary" size="small" [outlined]="true" (onClick)="portalLogout()" />
+      <p-button label="Manager View" icon="pi pi-lock" severity="secondary" size="small" [text]="true" (onClick)="viewMode.set('manager')" />
+    </div>
+  </header>
+
+  <div class="portal-body">
+
+    <!-- Hero greeting -->
+    <div class="portal-hero">
+      <div class="portal-hero-avatar">{{ t.firstName[0] }}{{ t.lastName[0] }}</div>
+      <div>
+        <h1 class="portal-hero-name">Welcome, {{ t.firstName }}!</h1>
+        <p class="portal-hero-sub">{{ t.teacherId }} &bull; {{ t.subject }} Teacher &bull; {{ t.yearsOfService }} years of service</p>
+      </div>
+      <div class="portal-status-badge" [ngClass]="'status-' + t.status.toLowerCase()">
+        <i class="pi" [ngClass]="t.status === 'ACTIVE' ? 'pi-check-circle' : t.status === 'SUSPENDED' ? 'pi-pause-circle' : 'pi-times-circle'"></i>
+        {{ t.status }}
+      </div>
+    </div>
+
+    <!-- Summary cards -->
+    <div class="portal-cards">
+      <div class="portal-card portal-card-highlight">
+        <div class="portal-card-label">Monthly Pension</div>
+        <div class="portal-card-value">{{ t.monthlyPension | currency:'USD':'symbol':'1.0-0' }}</div>
+        <div class="portal-card-sub">paid on the 1st of each month</div>
+      </div>
+      <div class="portal-card">
+        <div class="portal-card-label">Annual Total</div>
+        <div class="portal-card-value">{{ t.monthlyPension * 12 | currency:'USD':'symbol':'1.0-0' }}</div>
+        <div class="portal-card-sub">{{ currentYear }} projection</div>
+      </div>
+      <div class="portal-card">
+        <div class="portal-card-label">Years of Service</div>
+        <div class="portal-card-value">{{ t.yearsOfService }}</div>
+        <div class="portal-card-sub">years credited</div>
+      </div>
+      <div class="portal-card">
+        <div class="portal-card-label">Retired Since</div>
+        <div class="portal-card-value">{{ t.retirementDate | date:'MMM y' }}</div>
+        <div class="portal-card-sub">{{ t.retirementDate | date:'MMMM d, y' }}</div>
+      </div>
+    </div>
+
+    <div class="portal-lower">
+
+      <!-- Profile details -->
+      <p-card header="Profile Details" styleClass="portal-detail-card">
+        <div class="detail-grid">
+          <div class="detail-item">
+            <span class="detail-label">Full Name</span>
+            <span class="detail-value">{{ t.firstName }} {{ t.lastName }}</span>
+          </div>
+          <div class="detail-item">
+            <span class="detail-label">Teacher ID</span>
+            <span class="detail-value mono">{{ t.teacherId }}</span>
+          </div>
+          <div class="detail-item">
+            <span class="detail-label">Subject</span>
+            <span class="detail-value">{{ t.subject }}</span>
+          </div>
+          <div class="detail-item">
+            <span class="detail-label">Pension Start Date</span>
+            <span class="detail-value">{{ t.pensionStartDate | date:'MMMM d, y' }}</span>
+          </div>
+          <div class="detail-item">
+            <span class="detail-label">Retirement Date</span>
+            <span class="detail-value">{{ t.retirementDate | date:'MMMM d, y' }}</span>
+          </div>
+          <div class="detail-item">
+            <span class="detail-label">Account Status</span>
+            <span class="detail-value">
+              <p-tag [value]="t.status" [severity]="statusSeverity(t.status)" />
+            </span>
+          </div>
+        </div>
+      </p-card>
+
+      <!-- Payment history -->
+      <p-card header="Recent Payment History" styleClass="portal-detail-card">
+        <div class="payment-list">
+          @for (payment of portalPaymentHistory(); track payment.month; let first = $first) {
+            <div class="payment-row" [class.payment-row-latest]="first">
+              <div class="payment-icon">
+                <i class="pi pi-check-circle"></i>
+              </div>
+              <div class="payment-info">
+                <span class="payment-month">{{ payment.month }}</span>
+                @if (first) { <span class="payment-tag">Latest</span> }
+              </div>
+              <span class="payment-amount">{{ payment.amount | currency:'USD':'symbol':'1.2-2' }}</span>
+            </div>
+          }
+        </div>
+      </p-card>
+
+    </div>
+  </div>
+</div>
+
+} <!-- end portal view -->

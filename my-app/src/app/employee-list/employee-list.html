@@ -1,0 +1,239 @@
+<p-toast />
+<p-confirmdialog />
+
+<div class="layout">
+
+  <!-- Sidebar -->
+  <aside class="sidebar">
+    <div class="brand">
+      <div class="brand-icon">HR</div>
+      <span class="brand-name">HR Portal</span>
+    </div>
+    <nav>
+      <a class="nav-item active" routerLink="/">
+        <i class="pi pi-users"></i> Employees
+      </a>
+      <a class="nav-item" routerLink="/stats">
+        <i class="pi pi-chart-bar"></i> Analytics
+      </a>
+      <a class="nav-item" routerLink="/pension">
+        <i class="pi pi-shield"></i> Pension
+      </a>
+    </nav>
+    <div class="sidebar-footer">
+      <span class="manager-tag">Manager View</span>
+    </div>
+  </aside>
+
+  <main class="main">
+
+    <!-- Page header -->
+    <header class="page-header">
+      <div>
+        <h1>Employee Management</h1>
+        <p class="subtitle">{{ employees().length }} employees across {{ departments().length }} departments</p>
+      </div>
+      <div class="header-actions">
+        <p-button label="Apply Raise" icon="pi pi-arrow-up" severity="success" [outlined]="true" (onClick)="openRaiseModal()" />
+        <p-button label="Export CSV" icon="pi pi-download" severity="secondary" [outlined]="true" (onClick)="exportCsv()" />
+        <p-button label="Activity Log" icon="pi pi-list" severity="secondary" [outlined]="true" [badge]="activityLog().length > 0 ? activityLog().length.toString() : ''" (onClick)="showLog.set(!showLog())" />
+        <p-button label="Add Employee" icon="pi pi-plus" (onClick)="openAddForm()" />
+      </div>
+    </header>
+
+    <!-- Stat cards -->
+    <div class="stats-grid">
+      <p-card styleClass="stat-card">
+        <div class="stat-inner">
+          <div class="stat-icon blue"><i class="pi pi-users"></i></div>
+          <div>
+            <div class="stat-label">Total Employees</div>
+            <div class="stat-value">{{ employees().length }}</div>
+          </div>
+        </div>
+      </p-card>
+      <p-card styleClass="stat-card">
+        <div class="stat-inner">
+          <div class="stat-icon green"><i class="pi pi-dollar"></i></div>
+          <div>
+            <div class="stat-label">Total Payroll</div>
+            <div class="stat-value">{{ totalPayroll() | currency:'USD':'symbol':'1.0-0' }}</div>
+          </div>
+        </div>
+      </p-card>
+      <p-card styleClass="stat-card">
+        <div class="stat-inner">
+          <div class="stat-icon purple"><i class="pi pi-building"></i></div>
+          <div>
+            <div class="stat-label">Departments</div>
+            <div class="stat-value">{{ departments().length }}</div>
+          </div>
+        </div>
+      </p-card>
+      <p-card styleClass="stat-card">
+        <div class="stat-inner">
+          <div class="stat-icon orange"><i class="pi pi-chart-line"></i></div>
+          <div>
+            <div class="stat-label">Avg. Salary</div>
+            <div class="stat-value">
+              {{ employees().length ? (totalPayroll() / employees().length | currency:'USD':'symbol':'1.0-0') : '$0' }}
+            </div>
+          </div>
+        </div>
+      </p-card>
+    </div>
+
+    <!-- Activity log -->
+    @if (showLog()) {
+      <div class="log-panel">
+        <div class="log-header">
+          <span><i class="pi pi-history"></i> Session Activity</span>
+          <p-button label="Clear" size="small" severity="secondary" [text]="true" (onClick)="activityLog.set([])" />
+        </div>
+        @if (activityLog().length === 0) {
+          <p class="log-empty">No activity this session.</p>
+        }
+        @for (entry of activityLog(); track $index) {
+          <div class="log-entry">
+            <span class="log-time">{{ entry.time }}</span>
+            <span>{{ entry.message }}</span>
+          </div>
+        }
+      </div>
+    }
+
+    <!-- Filters + Table -->
+    <p-card>
+      <div class="toolbar">
+        <p-iconfield>
+          <p-inputicon styleClass="pi pi-search" />
+          <input pInputText placeholder="Search by name or email..." [value]="searchTerm()" (input)="searchTerm.set($any($event.target).value)" />
+        </p-iconfield>
+        <p-select [options]="departments()" [(ngModel)]="departmentFilter" optionLabel="label" optionValue="value" placeholder="All Departments" [showClear]="true" />
+      </div>
+
+      <p-table
+        [value]="filteredEmployees()"
+        [sortField]="'lastName'"
+        [sortOrder]="1"
+        [paginator]="true"
+        [rows]="10"
+        [rowsPerPageOptions]="[5, 10, 25]"
+        [showCurrentPageReport]="true"
+        currentPageReportTemplate="Showing {first} to {last} of {totalRecords} employees"
+        styleClass="p-datatable-striped p-datatable-sm"
+        [tableStyle]="{ 'min-width': '60rem' }">
+
+        <ng-template pTemplate="header">
+          <tr>
+            <th pSortableColumn="lastName">Employee <p-sortIcon field="lastName" /></th>
+            <th pSortableColumn="email">Email <p-sortIcon field="email" /></th>
+            <th pSortableColumn="department">Department <p-sortIcon field="department" /></th>
+            <th pSortableColumn="salary">Salary <p-sortIcon field="salary" /></th>
+            <th style="width: 9rem">Actions</th>
+          </tr>
+        </ng-template>
+
+        <ng-template pTemplate="body" let-emp>
+          <tr>
+            <td>
+              <div class="employee-cell">
+                <div class="avatar">{{ emp.firstName[0] }}{{ emp.lastName[0] }}</div>
+                <div>
+                  <div class="employee-name">
+                    {{ emp.firstName }} {{ emp.lastName }}
+                    @if (emp.id === topEarnerId()) {
+                      <span class="top-badge">Top Earner</span>
+                    }
+                  </div>
+                  <div class="employee-id">ID #{{ emp.id }}</div>
+                </div>
+              </div>
+            </td>
+            <td class="muted">{{ emp.email }}</td>
+            <td>
+              <p-tag [value]="emp.department" [severity]="deptSeverity(emp.department)" />
+            </td>
+            <td>
+              <div class="salary-cell">
+                <span class="salary">{{ emp.salary | currency:'USD':'symbol':'1.0-0' }}</span>
+                <div class="salary-bar-track">
+                  <div class="salary-bar-fill" [style.width.%]="salaryBarPct(emp.salary)"></div>
+                </div>
+              </div>
+            </td>
+            <td>
+              <div class="action-buttons">
+                <p-button icon="pi pi-pencil" size="small" severity="secondary" [rounded]="true" [text]="true" (onClick)="openEditForm(emp)" pTooltip="Edit" tooltipPosition="top" />
+                <p-button icon="pi pi-trash" size="small" severity="danger" [rounded]="true" [text]="true" (onClick)="confirmDelete(emp)" pTooltip="Delete" tooltipPosition="top" />
+              </div>
+            </td>
+          </tr>
+        </ng-template>
+
+        <ng-template pTemplate="emptymessage">
+          <tr>
+            <td colspan="5" class="empty-row">No employees match your search.</td>
+          </tr>
+        </ng-template>
+
+      </p-table>
+    </p-card>
+
+  </main>
+</div>
+
+<!-- Add / Edit Dialog -->
+<p-dialog
+  [header]="editingEmployee() ? 'Edit Employee' : 'New Employee'"
+  [(visible)]="showForm"
+  [modal]="true"
+  [style]="{ width: '480px' }"
+  [draggable]="false">
+
+  <form class="dialog-form" (ngSubmit)="submitForm()">
+    <div class="form-row">
+      <div class="form-group">
+        <label>First Name</label>
+        <input pInputText [(ngModel)]="formEmployee.firstName" name="firstName" required placeholder="Jane" />
+      </div>
+      <div class="form-group">
+        <label>Last Name</label>
+        <input pInputText [(ngModel)]="formEmployee.lastName" name="lastName" required placeholder="Smith" />
+      </div>
+    </div>
+    <div class="form-group">
+      <label>Email</label>
+      <input pInputText [(ngModel)]="formEmployee.email" name="email" type="email" required placeholder="jane.smith@company.com" />
+    </div>
+    <div class="form-group">
+      <label>Department</label>
+      <input pInputText [(ngModel)]="formEmployee.department" name="department" required placeholder="Engineering" />
+    </div>
+    <div class="form-group">
+      <label>Salary (USD)</label>
+      <input pInputText [(ngModel)]="formEmployee.salary" name="salary" type="number" required placeholder="80000" />
+    </div>
+    <div class="dialog-footer">
+      <p-button type="submit" [label]="editingEmployee() ? 'Save Changes' : 'Add Employee'" icon="pi pi-check" />
+    </div>
+  </form>
+</p-dialog>
+
+<!-- Apply Raise Dialog -->
+<p-dialog header="Apply Salary Raise" [(visible)]="showRaiseModal" [modal]="true" [style]="{ width: '580px' }" [draggable]="false">
+  <p class="dialog-hint">Increase all salaries in a department by a percentage.</p>
+  <div class="form-row">
+    <div class="form-group">
+      <label>Department</label>
+      <p-select [options]="departments()" [(ngModel)]="raiseDept" optionLabel="label" optionValue="value" placeholder="Select department" appendTo="body" />
+    </div>
+    <div class="form-group">
+      <label>Raise %</label>
+      <input pInputText [(ngModel)]="raisePercent" type="number" min="0.1" max="100" step="0.5" />
+    </div>
+  </div>
+  <div class="dialog-footer">
+    <p-button [label]="'Apply ' + raisePercent() + '% Raise'" icon="pi pi-arrow-up" severity="success" (onClick)="submitRaise()" />
+  </div>
+</p-dialog>
